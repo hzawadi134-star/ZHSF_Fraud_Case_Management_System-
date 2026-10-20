@@ -45,13 +45,6 @@ const users = [
   },
 
   {
-    username: "hr",
-    password: "hr123",
-    name: "Human Resources",
-    role: "Human Resources",
-  },
-
-  {
     username: "assistant",
     password: "assistant123",
     name: "Assistant Manager",
@@ -115,13 +108,6 @@ const rolePermissions = {
     "closure",
     "reports",
     "facilities",
-    "members",
-  ],
-
-  "Human Resources": [
-    "dashboard",
-    "reports",
-    "users",
     "members",
   ],
 

@@ -3,7 +3,9 @@ import React, { useState } from "react";
 function FraudIntake() {
   const [formData, setFormData] = useState({
     sourceChannel: "Call Center",
-    complainantCategory: "Member",
+    incidentEventCategory: "Fraud / Suspected Fraud",
+    incidentEventCategoryOther: "",
+    suspectedFraudCategory: "Membership fraud",
     incidentDate: "",
     memberId: "",
     facilityProvider: "",
@@ -16,9 +18,6 @@ function FraudIntake() {
     evidenceType: "SMS",
     evidenceDetails: "",
     evidenceFile: null,
-
-    priority: "Routine",
-    intakeOfficer: "AFU Intake Desk",
   });
 
   const [cases, setCases] = useState([]);
@@ -52,15 +51,34 @@ function FraudIntake() {
   };
 
   // =========================
+  // REMOVE SELECTED EVIDENCE
+  // =========================
+
+  const removeEvidence = () => {
+    setFormData((prev) => ({
+      ...prev,
+      evidenceFile: null,
+      evidenceDetails: "",
+    }));
+
+    // Reset file input
+    const fileInput = document.getElementById("evidenceFileInput");
+
+    if (fileInput) {
+      fileInput.value = "";
+    }
+  };
+
+  // =========================
   // GENERATE CASE ID
   // =========================
 
   const generateCaseId = () => {
-    const year = new Date().getFullYear();
+    const date = new Date();
 
-    const month = String(
-      new Date().getMonth() + 1
-    ).padStart(2, "0");
+    const year = date.getFullYear();
+
+    const month = String(date.getMonth() + 1).padStart(2, "0");
 
     const randomNumber = Math.floor(
       100000 + Math.random() * 900000
@@ -86,7 +104,9 @@ function FraudIntake() {
       createdDate: new Date().toLocaleString(),
 
       sourceChannel: formData.sourceChannel,
-      complainantCategory: formData.complainantCategory,
+      incidentEventCategory: formData.incidentEventCategory,
+      incidentEventCategoryOther: formData.incidentEventCategory === "Other" ? formData.incidentEventCategoryOther : "",
+      suspectedFraudCategory: formData.suspectedFraudCategory,
       incidentDate: formData.incidentDate,
       memberId: formData.memberId,
       facilityProvider: formData.facilityProvider,
@@ -99,6 +119,7 @@ function FraudIntake() {
       evidence: {
         type: formData.evidenceType,
         details: formData.evidenceDetails,
+
         file: formData.evidenceFile
           ? {
               name: formData.evidenceFile.name,
@@ -110,9 +131,6 @@ function FraudIntake() {
             }
           : null,
       },
-
-      priority: formData.priority,
-      intakeOfficer: formData.intakeOfficer,
 
       riskScore: 0,
       riskLevel: "Low",
@@ -134,7 +152,9 @@ function FraudIntake() {
   const handleClear = () => {
     setFormData({
       sourceChannel: "Call Center",
-      complainantCategory: "Member",
+      incidentEventCategory: "Fraud / Suspected Fraud",
+      incidentEventCategoryOther: "",
+      suspectedFraudCategory: "Membership fraud",
       incidentDate: "",
       memberId: "",
       facilityProvider: "",
@@ -147,12 +167,90 @@ function FraudIntake() {
       evidenceType: "SMS",
       evidenceDetails: "",
       evidenceFile: null,
-
-      priority: "Routine",
-      intakeOfficer: "AFU Intake Desk",
     });
 
+    const fileInput = document.getElementById(
+      "evidenceFileInput"
+    );
+
+    if (fileInput) {
+      fileInput.value = "";
+    }
+
     setMessage("");
+  };
+
+  // =========================
+  // REMOVE EVIDENCE FROM
+  // CREATED CASE
+  // =========================
+
+  const removeCaseEvidence = () => {
+    if (!selectedCase) return;
+
+    const updatedCase = {
+      ...selectedCase,
+      evidence: {
+        ...selectedCase.evidence,
+        file: null,
+        details: "",
+      },
+    };
+
+    setSelectedCase(updatedCase);
+
+    setCases((prev) =>
+      prev.map((item) =>
+        item.id === updatedCase.id
+          ? updatedCase
+          : item
+      )
+    );
+
+    setMessage(
+      "Evidence removed. You can now add the correct evidence."
+    );
+  };
+
+  // =========================
+  // ADD NEW EVIDENCE TO CASE
+  // =========================
+
+  const replaceCaseEvidence = (e) => {
+    const file = e.target.files[0] || null;
+
+    if (!file || !selectedCase) {
+      return;
+    }
+
+    const updatedCase = {
+      ...selectedCase,
+
+      evidence: {
+        ...selectedCase.evidence,
+
+        file: {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          url: URL.createObjectURL(file),
+        },
+      },
+    };
+
+    setSelectedCase(updatedCase);
+
+    setCases((prev) =>
+      prev.map((item) =>
+        item.id === updatedCase.id
+          ? updatedCase
+          : item
+      )
+    );
+
+    setMessage(
+      "New evidence attached successfully."
+    );
   };
 
   // =========================
@@ -171,7 +269,10 @@ function FraudIntake() {
         >
           <button
             className="clear-button"
-            onClick={() => setSelectedCase(null)}
+            onClick={() => {
+              setSelectedCase(null);
+              setMessage("");
+            }}
           >
             ← Back to Fraud Intake
           </button>
@@ -199,7 +300,6 @@ function FraudIntake() {
 
             <p>
               Created on {selectedCase.createdDate}
-              {" "} | By {selectedCase.intakeOfficer}
             </p>
           </div>
 
@@ -216,6 +316,13 @@ function FraudIntake() {
           </div>
 
         </div>
+
+        {/* MESSAGE */}
+        {message && (
+          <div className="success-message">
+            {message}
+          </div>
+        )}
 
         {/* MAIN GRID */}
         <div className="case-details-grid">
@@ -235,14 +342,18 @@ function FraudIntake() {
               <div className="case-info-grid">
 
                 <div>
-                  <label>Source Channel</label>
+                  <label>Source of Information / Channel</label>
+
                   <strong>
                     {selectedCase.sourceChannel}
                   </strong>
                 </div>
 
                 <div>
-                  <label>Claim / Authorization No.</label>
+                  <label>
+                    Claim / Authorization No.
+                  </label>
+
                   <strong>
                     {selectedCase.claimAuthorization ||
                       "Not provided"}
@@ -250,14 +361,18 @@ function FraudIntake() {
                 </div>
 
                 <div>
-                  <label>Complainant Category</label>
+                  <label>
+                    Incident / Event Category
+                  </label>
+
                   <strong>
-                    {selectedCase.complainantCategory}
+                    {selectedCase.incidentEventCategory}
                   </strong>
                 </div>
 
                 <div>
                   <label>Service Type</label>
+
                   <strong>
                     {selectedCase.serviceType}
                   </strong>
@@ -265,6 +380,7 @@ function FraudIntake() {
 
                 <div>
                   <label>Incident Date</label>
+
                   <strong>
                     {selectedCase.incidentDate ||
                       "Not provided"}
@@ -272,7 +388,21 @@ function FraudIntake() {
                 </div>
 
                 <div>
-                  <label>Suspected Amount (TZS)</label>
+                  <label>
+                    Suspected Fraud Category
+                  </label>
+
+                  <strong>
+                    {selectedCase.suspectedFraudCategory ||
+                      "Not provided"}
+                  </strong>
+                </div>
+
+                <div>
+                  <label>
+                    Suspected Amount (TZS)
+                  </label>
+
                   <strong>
                     {Number(
                       selectedCase.suspectedAmount
@@ -282,6 +412,7 @@ function FraudIntake() {
 
                 <div>
                   <label>Member ID</label>
+
                   <strong>
                     {selectedCase.memberId ||
                       "Not provided"}
@@ -290,23 +421,20 @@ function FraudIntake() {
 
                 <div>
                   <label>Red Flag</label>
+
                   <strong>
                     {selectedCase.redFlag}
                   </strong>
                 </div>
 
                 <div>
-                  <label>Facility / Provider</label>
+                  <label>
+                    Facility / Provider
+                  </label>
+
                   <strong>
                     {selectedCase.facilityProvider ||
                       "Not provided"}
-                  </strong>
-                </div>
-
-                <div>
-                  <label>Priority</label>
-                  <strong>
-                    {selectedCase.priority}
                   </strong>
                 </div>
 
@@ -316,13 +444,6 @@ function FraudIntake() {
                   <span className="case-status-badge">
                     {selectedCase.status}
                   </span>
-                </div>
-
-                <div>
-                  <label>Intake Officer</label>
-                  <strong>
-                    {selectedCase.intakeOfficer}
-                  </strong>
                 </div>
 
               </div>
@@ -359,8 +480,10 @@ function FraudIntake() {
               </div>
 
               {selectedCase.evidence &&
-              (selectedCase.evidence.details ||
-                selectedCase.evidence.file) ? (
+              (
+                selectedCase.evidence.details ||
+                selectedCase.evidence.file
+              ) ? (
 
                 <div className="evidence-details-card">
 
@@ -386,6 +509,8 @@ function FraudIntake() {
 
                   </div>
 
+                  {/* EVIDENCE DETAILS */}
+
                   <div className="evidence-text">
 
                     <label>
@@ -399,13 +524,19 @@ function FraudIntake() {
 
                   </div>
 
+                  {/* FILE */}
+
                   {selectedCase.evidence.file && (
                     <div className="evidence-file-box">
 
                       <div>
                         📄{" "}
+
                         <strong>
-                          {selectedCase.evidence.file.name}
+                          {
+                            selectedCase.evidence
+                              .file.name
+                          }
                         </strong>
 
                         <small>
@@ -419,16 +550,78 @@ function FraudIntake() {
                         </small>
                       </div>
 
-                      <a
-                        href={
-                          selectedCase.evidence.file.url
-                        }
-                        target="_blank"
-                        rel="noreferrer"
-                        className="view-evidence-button"
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "10px",
+                          alignItems: "center",
+                          flexWrap: "wrap",
+                        }}
                       >
-                        👁 View Evidence
-                      </a>
+
+                        <a
+                          href={
+                            selectedCase.evidence
+                              .file.url
+                          }
+                          target="_blank"
+                          rel="noreferrer"
+                          className="view-evidence-button"
+                        >
+                          👁 View Evidence
+                        </a>
+
+                        <button
+                          type="button"
+                          className="clear-button"
+                          onClick={
+                            removeCaseEvidence
+                          }
+                        >
+                          🗑 Remove Evidence
+                        </button>
+
+                      </div>
+
+                    </div>
+                  )}
+
+                  {/* ADD CORRECT EVIDENCE */}
+
+                  {!selectedCase.evidence.file && (
+                    <div
+                      style={{
+                        marginTop: "20px",
+                        padding: "18px",
+                        border: "1px dashed #ccc",
+                        borderRadius: "10px",
+                      }}
+                    >
+
+                      <label>
+                        <strong>
+                          📎 Attach Correct Evidence
+                        </strong>
+                      </label>
+
+                      <p
+                        style={{
+                          marginTop: "6px",
+                          marginBottom: "12px",
+                        }}
+                      >
+                        The previous evidence was
+                        removed. Select the correct
+                        evidence file.
+                      </p>
+
+                      <input
+                        type="file"
+                        onChange={
+                          replaceCaseEvidence
+                        }
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt,.xlsx,.xls,.csv,.mp3,.mp4"
+                      />
 
                     </div>
                   )}
@@ -438,8 +631,28 @@ function FraudIntake() {
               ) : (
 
                 <div className="no-evidence">
-                  No evidence has been attached to
-                  this case.
+
+                  <p>
+                    No evidence has been attached
+                    to this case.
+                  </p>
+
+                  <label>
+                    <strong>
+                      📎 Add Correct Evidence
+                    </strong>
+                  </label>
+
+                  <br />
+
+                  <input
+                    type="file"
+                    onChange={
+                      replaceCaseEvidence
+                    }
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt,.xlsx,.xls,.csv,.mp3,.mp4"
+                  />
+
                 </div>
 
               )}
@@ -458,6 +671,7 @@ function FraudIntake() {
 
               <div className="summary-row">
                 <span>Case ID</span>
+
                 <strong>
                   {selectedCase.id}
                 </strong>
@@ -478,22 +692,6 @@ function FraudIntake() {
                   {selectedCase.riskScore}
                   {" "}
                   ({selectedCase.riskLevel})
-                </strong>
-              </div>
-
-              <div className="summary-row">
-                <span>Priority</span>
-
-                <strong>
-                  {selectedCase.priority}
-                </strong>
-              </div>
-
-              <div className="summary-row">
-                <span>Officer</span>
-
-                <strong>
-                  {selectedCase.intakeOfficer}
                 </strong>
               </div>
 
@@ -564,10 +762,14 @@ function FraudIntake() {
   return (
     <div className="page">
 
+      {/* PAGE HEADER */}
+
       <div className="page-header">
 
         <div>
-          <h2>Fraud Intelligence Intake</h2>
+          <h2>
+            AFU FRAUD MANAGEMENT SYSTEM (AFMS)
+          </h2>
 
           <p>
             Capture once; route automatically
@@ -578,14 +780,14 @@ function FraudIntake() {
       </div>
 
       {/* FORM */}
+
       <div className="form-panel intake-panel">
 
         <div className="intake-header">
 
           <div>
             <h3>
-              New Fraud Complaint /
-              Intelligence Intake
+              Fraud Register
             </h3>
 
             <p>
@@ -602,10 +804,61 @@ function FraudIntake() {
 
         <form onSubmit={handleSubmit}>
 
+          {/* =========================
+              CASE INFORMATION
+          ========================= */}
+
           <div className="form-grid three-columns">
 
+            {/* INCIDENT / EVENT CATEGORY */}
+
             <div className="form-field">
-              <label>SOURCE CHANNEL</label>
+
+              <label>
+                INCIDENT / EVENT CATEGORY
+              </label>
+
+              <select
+                name="incidentEventCategory"
+                value={formData.incidentEventCategory}
+                onChange={handleChange}
+              >
+                <option>Fraud / Suspected Fraud</option>
+                <option>Corruption / Bribery</option>
+                <option>Theft / Misappropriation</option>
+                <option>Conflict of Interest</option>
+                <option>Financial Irregularity</option>
+                <option>Membership Irregularity</option>
+                <option>Provider Non-Compliance</option>
+                <option>Clinical / Service Irregularity</option>
+                <option>Data / Privacy Incident</option>
+                <option>ICT / Cybersecurity Incident</option>
+                <option>False Documentation / Misrepresentation</option>
+                <option>Complaint / Grievance</option>
+                <option>Whistleblower Report</option>
+                <option>Other</option>
+              </select>
+
+              {formData.incidentEventCategory === "Other" && (
+                <input
+                  type="text"
+                  name="incidentEventCategoryOther"
+                  value={formData.incidentEventCategoryOther}
+                  onChange={handleChange}
+                  placeholder="Specify other incident / event category"
+                  style={{ marginTop: "10px" }}
+                />
+              )}
+
+            </div>
+
+            {/* SOURCE */}
+
+            <div className="form-field">
+
+              <label>
+                SOURCE OF INFORMATION / CHANNEL
+              </label>
 
               <select
                 name="sourceChannel"
@@ -613,34 +866,27 @@ function FraudIntake() {
                 onChange={handleChange}
               >
                 <option>Call Center</option>
-                <option>Walk-in</option>
-                <option>Email</option>
-                <option>Website</option>
-                <option>Referral</option>
-                <option>Anonymous</option>
-                <option>Internal Audit</option>
+                <option>Claim data anomalies</option>
+                <option>Membership data</option>
+                <option>Provider data</option>
+                <option>Complaints</option>
+                <option>Whistleblowers</option>
+                <option>Inspection findings</option>
+                <option>ICT/System logs</option>
+                <option>Compliance data / complaints</option>
+                <option>External sources</option>
+                <option>Internal audits/finding</option>
               </select>
+
             </div>
 
-            <div className="form-field">
-              <label>COMPLAINANT CATEGORY</label>
-
-              <select
-                name="complainantCategory"
-                value={formData.complainantCategory}
-                onChange={handleChange}
-              >
-                <option>Member</option>
-                <option>Facility</option>
-                <option>Provider</option>
-                <option>Staff</option>
-                <option>Anonymous</option>
-                <option>Other</option>
-              </select>
-            </div>
+            {/* INCIDENT DATE */}
 
             <div className="form-field">
-              <label>INCIDENT DATE</label>
+
+              <label>
+                INCIDENT DATE
+              </label>
 
               <input
                 type="date"
@@ -648,10 +894,51 @@ function FraudIntake() {
                 value={formData.incidentDate}
                 onChange={handleChange}
               />
+
             </div>
 
+            {/* SUSPECTED FRAUD CATEGORY */}
+
             <div className="form-field">
-              <label>MEMBER ID</label>
+
+              <label>
+                SUSPECTED FRAUD CATEGORY
+              </label>
+
+             <select
+  name="suspectedFraudCategory"
+  value={formData.suspectedFraudCategory}
+  onChange={handleChange}
+>
+  <option>Membership fraud</option>
+  <option>Clinical fraud</option>
+  <option>Compliance fraud</option>
+  <option>Insurer fraud</option>
+  <option>Other</option>
+</select>
+
+{formData.suspectedFraudCategory === "Other" && (
+  <input
+    type="text"
+    name="suspectedFraudCategoryOther"
+    value={formData.suspectedFraudCategoryOther}
+    onChange={handleChange}
+    placeholder="Write other suspected fraud category"
+    style={{ marginTop: "10px" }}
+  />
+)}
+          
+
+
+            </div>
+
+            {/* MEMBER ID */}
+
+            <div className="form-field">
+
+              <label>
+                MEMBER ID
+              </label>
 
               <input
                 name="memberId"
@@ -659,100 +946,145 @@ function FraudIntake() {
                 onChange={handleChange}
                 placeholder="e.g. ZHSF-000123"
               />
+
             </div>
 
+            {/* FACILITY */}
+
             <div className="form-field">
-              <label>FACILITY / PROVIDER</label>
+
+              <label>
+                FACILITY / INSTITUTE
+              </label>
 
               <input
                 name="facilityProvider"
-                value={formData.facilityProvider}
+                value={
+                  formData.facilityProvider
+                }
                 onChange={handleChange}
                 placeholder="Facility name"
               />
+
             </div>
 
+            {/* CLAIM */}
+
             <div className="form-field">
-              <label>CLAIM / AUTHORIZATION NO.</label>
+
+              <label>
+                CLAIM / AUTHORIZATION NO.
+              </label>
 
               <input
                 name="claimAuthorization"
-                value={formData.claimAuthorization}
+                value={
+                  formData.claimAuthorization
+                }
                 onChange={handleChange}
               />
+
             </div>
 
-            <div className="form-field">
-              <label>SERVICE TYPE</label>
+            {/* SERVICE TYPE */}
 
-              <select
-                name="serviceType"
-                value={formData.serviceType}
-                onChange={handleChange}
-              >
-                <option>Pharmacy</option>
-                <option>Outpatient</option>
-                <option>Inpatient</option>
-                <option>Laboratory</option>
-                <option>Radiology</option>
-                <option>Dental</option>
-                <option>Maternal</option>
-                <option>Surgery</option>
-                <option>Other</option>
-              </select>
+            <div className="form-field">
+
+              <label>
+                SERVICE TYPE
+              </label>
+
+             <select
+  name="serviceType"
+  value={formData.serviceType}
+  onChange={handleChange}
+>
+  <option>Pharmacy</option>
+  <option>Outpatient</option>
+  <option>Inpatient</option>
+  <option>Laboratory</option>
+  <option>Radiology</option>
+  <option>Dental</option>
+  <option>Maternal</option>
+  <option>Surgery</option>
+  <option>Other</option>
+</select>
+
+{formData.serviceType === "Other" && (
+  <input
+    type="text"
+    name="serviceTypeOther"
+    value={formData.serviceTypeOther}
+    onChange={handleChange}
+    placeholder="Write other service type"
+    style={{ marginTop: "10px" }}
+  />
+)}
+
             </div>
 
+            {/* AMOUNT */}
+
             <div className="form-field">
-              <label>SUSPECTED AMOUNT (TZS)</label>
+
+              <label>
+                SUSPECTED AMOUNT (TZS)
+              </label>
 
               <input
                 type="number"
                 min="0"
                 name="suspectedAmount"
-                value={formData.suspectedAmount}
+                value={
+                  formData.suspectedAmount
+                }
                 onChange={handleChange}
               />
+
             </div>
 
-            <div className="form-field">
-              <label>RED FLAG</label>
+            {/* RED FLAG */}
 
-              <select
-                name="redFlag"
-                value={formData.redFlag}
-                onChange={handleChange}
-              >
-                <option>
-                  Card used without member attendance
-                </option>
-                <option>
-                  Service not provided / partial
-                </option>
-                <option>
-                  Billing greater than service
-                </option>
-                <option>
-                  Duplicate / inconsistent billing
-                </option>
-                <option>
-                  Wrong authorization / registration
-                </option>
-                <option>
-                  Delayed / misdirected SMS
-                </option>
-                <option>
-                  Multiple claims for same service
-                </option>
-                <option>
-                  Suspicious provider activity
-                </option>
-                <option>Other</option>
-              </select>
+            <div className="form-field">
+
+              <label>
+                RED FLAG
+              </label>
+
+             <select
+  name="redFlag"
+  value={formData.redFlag}
+  onChange={handleChange}
+>
+  <option>Card used without member attendance</option>
+  <option>Service not provided / partial</option>
+  <option>Billing greater than service</option>
+  <option>Duplicate / inconsistent billing</option>
+  <option>Wrong authorization / registration</option>
+  <option>Delayed / misdirected SMS</option>
+  <option>Multiple claims for same service</option>
+  <option>Suspicious provider activity</option>
+  <option>Other</option>
+</select>
+
+{formData.redFlag === "Other" && (
+  <input
+    type="text"
+    name="redFlagOther"
+    value={formData.redFlagOther}
+    onChange={handleChange}
+    placeholder="Write other red flag"
+    style={{ marginTop: "10px" }}
+  />
+)}
+
             </div>
 
           </div>
 
-          {/* DESCRIPTION */}
+          {/* =========================
+              DESCRIPTION
+          ========================= */}
 
           <div className="form-field full-width">
 
@@ -770,12 +1102,14 @@ function FraudIntake() {
 
           </div>
 
-          {/* EVIDENCE */}
+          {/* =========================
+              EVIDENCE
+          ========================= */}
 
           <div className="evidence-section">
 
             <h3>
-              Evidence / Supporting Information
+              📎 EVIDENCE / SUPPORTING INFORMATION
             </h3>
 
             <p>
@@ -785,48 +1119,110 @@ function FraudIntake() {
 
             <div className="form-grid three-columns">
 
+              {/* EVIDENCE TYPE */}
+
               <div className="form-field">
 
-                <label>EVIDENCE TYPE</label>
+                <label>
+                  EVIDENCE TYPE
+                </label>
 
-                <select
-                  name="evidenceType"
-                  value={formData.evidenceType}
-                  onChange={handleChange}
-                >
-                  <option>SMS</option>
-                  <option>Call</option>
-                  <option>Claim</option>
-                  <option>Document</option>
-                  <option>Email</option>
-                  <option>Image / Photo</option>
-                  <option>System Record</option>
-                  <option>Payment Record</option>
-                  <option>Other</option>
-                </select>
+               <select
+  name="evidenceType"
+  value={formData.evidenceType}
+  onChange={handleChange}
+>
+  <option>SMS</option>
+  <option>Call</option>
+  <option>Claim</option>
+  <option>Document</option>
+  <option>Email</option>
+  <option>Image / Photo</option>
+  <option>System Record</option>
+  <option>Payment Record</option>
+  <option>Other</option>
+</select>
+
+{formData.evidenceType === "Other" && (
+  <input
+    type="text"
+    name="evidenceTypeOther"
+    value={formData.evidenceTypeOther}
+    onChange={handleChange}
+    placeholder="Write other evidence type"
+    style={{ marginTop: "10px" }}
+  />
+)}
 
               </div>
 
+              {/* ATTACH FILE */}
+
               <div className="form-field">
 
-                <label>ATTACH EVIDENCE</label>
+                <label>
+                  ATTACH EVIDENCE
+                </label>
 
                 <input
+                  id="evidenceFileInput"
                   type="file"
                   onChange={handleEvidenceFile}
                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt,.xlsx,.xls,.csv,.mp3,.mp4"
                 />
 
-                {formData.evidenceFile && (
-                  <small>
-                    Selected:{" "}
-                    {formData.evidenceFile.name}
-                  </small>
-                )}
-
               </div>
 
             </div>
+
+            {/* SELECTED EVIDENCE */}
+
+            {formData.evidenceFile && (
+              <div
+                style={{
+                  marginTop: "15px",
+                  padding: "15px",
+                  border: "1px solid #d8dee9",
+                  borderRadius: "10px",
+                  background: "#f8fafc",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: "15px",
+                  flexWrap: "wrap",
+                }}
+              >
+
+                <div>
+
+                  <strong>
+                    📄{" "}
+                    {formData.evidenceFile.name}
+                  </strong>
+
+                  <br />
+
+                  <small>
+                    {Math.round(
+                      formData.evidenceFile.size / 1024
+                    )}{" "}
+                    KB
+                  </small>
+
+                </div>
+
+                <button
+                  type="button"
+                  className="clear-button"
+                  onClick={removeEvidence}
+                >
+                  🗑 Remove Evidence
+                </button>
+
+              </div>
+            )}
+
+            {/* EVIDENCE DETAILS */}
 
             <div className="form-field">
 
@@ -846,42 +1242,9 @@ function FraudIntake() {
 
           </div>
 
-          {/* PRIORITY */}
-
-          <div className="form-grid three-columns">
-
-            <div className="form-field">
-
-              <label>PRIORITY</label>
-
-              <select
-                name="priority"
-                value={formData.priority}
-                onChange={handleChange}
-              >
-                <option>Routine</option>
-                <option>Monitor</option>
-                <option>Priority</option>
-                <option>Urgent</option>
-              </select>
-
-            </div>
-
-            <div className="form-field">
-
-              <label>INTAKE OFFICER</label>
-
-              <input
-                name="intakeOfficer"
-                value={formData.intakeOfficer}
-                onChange={handleChange}
-              />
-
-            </div>
-
-          </div>
-
-          {/* BUTTONS */}
+          {/* =========================
+              BUTTONS
+          ========================= */}
 
           <div className="form-actions">
 
@@ -889,7 +1252,7 @@ function FraudIntake() {
               type="submit"
               className="primary-button"
             >
-              Create Case & Generate ID
+              Register Case & Generate ID
             </button>
 
             <button
@@ -912,12 +1275,16 @@ function FraudIntake() {
 
       </div>
 
-      {/* CREATED CASES */}
+      {/* =========================
+          CREATED CASES
+      ========================= */}
 
       {cases.length > 0 && (
         <div className="case-list-panel">
 
-          <h2>My Created Cases</h2>
+          <h2>
+            My Created Cases
+          </h2>
 
           <p>
             Cases created from Fraud Intelligence
@@ -929,6 +1296,7 @@ function FraudIntake() {
             <table>
 
               <thead>
+
                 <tr>
                   <th>CASE ID</th>
                   <th>DATE</th>
@@ -938,6 +1306,7 @@ function FraudIntake() {
                   <th>RISK</th>
                   <th>ACTION</th>
                 </tr>
+
               </thead>
 
               <tbody>

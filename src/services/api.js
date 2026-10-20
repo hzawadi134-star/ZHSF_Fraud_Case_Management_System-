@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:8080/api";
+const API_BASE_URL = "new-project-production-e401.up.railway.app/api/v1";
 
 const api = {
   // GET request
